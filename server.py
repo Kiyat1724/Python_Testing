@@ -24,11 +24,22 @@ clubs = loadClubs()
 def index():
     return render_template('index.html')
 
-@app.route('/showSummary',methods=['POST'])
+@app.route('/showSummary', methods=['POST'])
 def showSummary():
-    club = [club for club in clubs if club['email'] == request.form['email']][0]
-    return render_template('welcome.html',club=club,competitions=competitions)
+    club = next(
+        (club for club in clubs if club['email'] == request.form['email']),
+        None
+    )
 
+    if club is None:
+        flash("Unknown email. Please try again.")
+        return render_template("index.html")
+
+    return render_template(
+        "welcome.html",
+        club=club,
+        competitions=competitions
+    )
 
 @app.route('/book/<competition>/<club>')
 def book(competition,club):
@@ -41,15 +52,36 @@ def book(competition,club):
         return render_template('welcome.html', club=club, competitions=competitions)
 
 
-@app.route('/purchasePlaces',methods=['POST'])
+@app.route('/purchasePlaces', methods=['POST'])
 def purchasePlaces():
     competition = [c for c in competitions if c['name'] == request.form['competition']][0]
     club = [c for c in clubs if c['name'] == request.form['club']][0]
-    placesRequired = int(request.form['places'])
-    competition['numberOfPlaces'] = int(competition['numberOfPlaces'])-placesRequired
-    flash('Great-booking complete!')
-    return render_template('welcome.html', club=club, competitions=competitions)
 
+    placesRequired = int(request.form['places'])
+    clubPoints = int(club["points"])
+
+    # Vérifie que le club possède assez de points
+    if placesRequired > clubPoints:
+        flash("Not enough points.")
+        return render_template(
+            "welcome.html",
+            club=club,
+            competitions=competitions
+        )
+
+    # Réservation valide
+    competition['numberOfPlaces'] = str(
+        int(competition['numberOfPlaces']) - placesRequired
+    )
+
+    club["points"] = str(clubPoints - placesRequired)
+
+    flash("Great-booking complete!")
+    return render_template(
+        "welcome.html",
+        club=club,
+        competitions=competitions
+    )
 
 # TODO: Add route for points display
 
