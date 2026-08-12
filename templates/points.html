@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Club Points</title>
+</head>
+
+<body>
+
+<h1>Club Points Board</h1>
+
+<table border="1">
+
+    <tr>
+        <th>Club</th>
+        <th>Points</th>
+    </tr>
+
+    {% for club in clubs %}
+    <tr>
+        <td>{{ club.name }}</td>
+        <td>{{ club.points }}</td>
+    </tr>
+    {% endfor %}
+
+</table>
+
+</body>
+
+</html>
