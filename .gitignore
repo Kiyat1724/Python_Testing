@@ -5,3 +5,4 @@ lib
 .envrc
 __pycache__
 locust_report.html
+*.performance.backup.json
