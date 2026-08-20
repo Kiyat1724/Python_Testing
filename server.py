@@ -24,14 +24,19 @@ def loadCompetitions():
         return json.load(comps)["competitions"]
 
 
+def loadBookings():
+    with open("bookings.json") as bookings_file:
+        return json.load(bookings_file)["bookings"]
+
+
 app = Flask(__name__)
 app.secret_key = "something_special"
 
-competitions = loadCompetitions()
-clubs = loadClubs()
 
-# Stockage temporaire des réservations
-bookings = []
+clubs = loadClubs()
+competitions = loadCompetitions()
+bookings = loadBookings()
+
 
 def saveClubs():
     with open("clubs.json", "w") as c:
@@ -43,8 +48,20 @@ def saveCompetitions():
         json.dump({"competitions": competitions}, comps, indent=4)
 
 
+def saveBookings():
+    with open("bookings.json", "w") as bookings_file:
+        json.dump(
+            {"bookings": bookings},
+            bookings_file,
+            indent=4,
+        )
+
+
 def get_already_booked(club_name, competition_name):
-    """Nombre de places déjà réservées par un club sur une compétition."""
+    """
+    Return the total number of places already booked
+    by one club for one competition.
+    """
     return sum(
         booking["places"]
         for booking in bookings
@@ -60,7 +77,6 @@ def index():
 
 @app.route("/showSummary", methods=["POST"])
 def showSummary():
-
     club = next(
         (
             club
@@ -84,7 +100,6 @@ def showSummary():
 
 @app.route("/book/<competition>/<club>")
 def book(competition, club):
-
     foundClub = next(
         c for c in clubs
         if c["name"] == club
@@ -110,12 +125,16 @@ def book(competition, club):
         )
 
     already_booked = get_already_booked(
-        foundClub["name"], foundCompetition["name"]
+        foundClub["name"],
+        foundCompetition["name"],
     )
+
     max_places = min(
         12 - already_booked,
         int(foundCompetition["numberOfPlaces"]),
+        int(foundClub["points"]),
     )
+
     max_places = max(max_places, 0)
 
     return render_template(
@@ -128,27 +147,26 @@ def book(competition, club):
 
 def purchase_places(club, competition, places_required):
     """
-    Validate a booking.
+    Validate a booking and update application data.
 
     Returns:
-        (True, message)
-        (False, error_message)
+        (True, message) when the booking succeeds.
+        (False, error_message) when a business rule fails.
     """
-
     club_points = int(club["points"])
     competition_places = int(competition["numberOfPlaces"])
 
-    already_booked = get_already_booked(club["name"], competition["name"])
+    already_booked = get_already_booked(
+        club["name"],
+        competition["name"],
+    )
 
-    # nombre positif
     if places_required <= 0:
         return False, "You must book at least one place."
 
-    # maximum 12 places pour un club sur une compétition
     if already_booked + places_required > 12:
         return False, "You cannot book more than 12 places."
 
-    # compétition passée
     competition_date = datetime.strptime(
         competition["date"],
         DATE_FORMAT,
@@ -157,21 +175,20 @@ def purchase_places(club, competition, places_required):
     if competition_date < datetime.now():
         return False, "This competition has already taken place."
 
-    # places disponibles
     if places_required > competition_places:
         return False, "Not enough places available."
 
-    # points disponibles
     if places_required > club_points:
         return False, "Not enough points."
 
-    # réservation
     competition["numberOfPlaces"] = str(
         competition_places - places_required
     )
+
     club["points"] = str(
         club_points - places_required
     )
+
     bookings.append(
         {
             "club": club["name"],
@@ -179,8 +196,11 @@ def purchase_places(club, competition, places_required):
             "places": places_required,
         }
     )
+
     saveClubs()
     saveCompetitions()
+    saveBookings()
+
     return True, "Great-booking complete!"
 
 
@@ -190,10 +210,12 @@ def purchasePlaces():
         c for c in competitions
         if c["name"] == request.form["competition"]
     )
+
     club = next(
         c for c in clubs
         if c["name"] == request.form["club"]
     )
+
     places_required = int(request.form["places"])
 
     success, message = purchase_places(
@@ -201,6 +223,7 @@ def purchasePlaces():
         competition,
         places_required,
     )
+
     flash(message)
 
     return render_template(
@@ -217,6 +240,7 @@ def displayPoints():
         "points.html",
         clubs=clubs,
     )
+
 
 @app.route("/logout")
 def logout():
