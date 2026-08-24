@@ -2,6 +2,7 @@ from server import app, competitions, bookings
 
 
 def test_cannot_book_past_competition():
+    """The booking page is unavailable for a past competition."""
     bookings.clear()
 
     competition = next(
@@ -9,7 +10,6 @@ def test_cannot_book_past_competition():
         if c["name"] == "Spring Festival"
     )
 
-    # État contrôlé : la compétition est volontairement passée
     competition["date"] = "2020-03-27 10:00:00"
     competition["numberOfPlaces"] = "25"
 
