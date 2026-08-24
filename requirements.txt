@@ -28,6 +28,7 @@ psutil==7.2.2
 pycparser==3.0
 Pygments==2.20.0
 pytest==9.1.1
+pytest-cov==7.1.0
 python-engineio==4.13.5
 python-socketio==5.16.4
 pywin32==312
