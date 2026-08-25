@@ -4,10 +4,9 @@
 
 GUDLFT Registration is a lightweight Flask proof-of-concept application for managing competition bookings between sports clubs.
 
-The objective of this project is to improve an existing Python web application by identifying bugs, implementing business rules, improving data persistence, and building an automated testing strategy.
+The objective of this project is to improve an existing Python web application by identifying and fixing bugs, implementing business rules, improving data persistence, and building a structured automated testing strategy.
 
-The project focuses particularly on software quality, debugging, testing, validation of business requirements, and performance testing.
-
+The project focuses particularly on software quality, debugging, testing, validation of business requirements, data consistency, and performance testing.
 
 ## Main Features
 
@@ -21,7 +20,6 @@ Club secretaries can:
 
 The application prevents invalid bookings by applying validation rules both in the user interface and in the backend.
 
-
 ## Technologies
 
 The project uses:
@@ -33,7 +31,6 @@ The project uses:
 - Locust
 - JSON
 - Git / GitHub
-
 
 ## Installation
 
@@ -58,7 +55,7 @@ Activate the virtual environment:
 venv\Scripts\Activate.ps1
 ```
 
-If PowerShell prevents script execution, you can temporarily allow it for the current session:
+If PowerShell prevents script execution, temporarily allow it for the current session:
 
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
@@ -77,7 +74,6 @@ Install the project dependencies:
 pip install -r requirements.txt
 ```
 
-
 ## Running the Application
 
 Set Flask to use `server.py`.
@@ -95,7 +91,6 @@ The application is then available at:
 http://127.0.0.1:5000/
 ```
 
-
 ## Data Persistence
 
 The application uses JSON files instead of a database.
@@ -110,10 +105,11 @@ Bookings are persisted so that booking history is not lost when the Flask server
 
 This persistence is also used to enforce the maximum number of places that a club can book for the same competition.
 
-
 ## Booking Business Rules
 
-The booking logic has been separated from the Flask route into a dedicated `purchase_places()` function.
+The booking business logic has been separated from the Flask route into a dedicated `purchase_places()` function.
+
+This separation makes the business rules easier to understand, maintain, and test independently from the HTTP layer.
 
 A booking is accepted only when all business rules are satisfied.
 
@@ -130,8 +126,7 @@ For a successful booking:
 - the club's points balance is reduced;
 - the competition's available places are reduced;
 - the booking is stored in `bookings.json`;
-- the updated club and competition data are persisted in their JSON files.
-
+- the updated club and competition data are persisted in their respective JSON files.
 
 ## Dynamic Booking Limit
 
@@ -139,14 +134,13 @@ The booking form dynamically calculates the maximum number of places that can be
 
 The limit takes into account:
 
-- the remaining allowance before reaching the 12-place limit;
+- the remaining allowance before reaching the 12-place cumulative limit;
 - the number of places still available in the competition;
 - the number of points currently available to the club.
 
 The backend performs the same business validations independently of the interface.
 
-This ensures that application rules cannot be bypassed simply by modifying the HTML form.
-
+This ensures that business rules cannot be bypassed simply by modifying the HTML form.
 
 ## Past Competitions
 
@@ -155,79 +149,110 @@ Past competitions cannot be booked.
 The application handles this rule at two levels:
 
 1. the booking option is not displayed for past competitions in the interface;
-2. the backend booking logic also rejects an attempt to book a past competition.
+2. the backend booking logic rejects attempts to book a past competition.
 
-This provides both a better user experience and server-side validation of the business rule.
-
+This provides both a better user experience and server-side enforcement of the business rule.
 
 ## Points Board
 
-Club secretaries can access a points board displaying the clubs and their current points balances.
+The application provides a public points board displaying the clubs and their current points balances.
 
-This provides visibility of the points available to the different clubs.
-
+This allows users to consult the points available to each club without requiring authentication.
 
 # Testing Strategy
 
 Automated tests are implemented with Pytest.
 
-The test suite is organized by test type and functionality rather than by GitHub issue number.
+Following the QA review, the test suite was reorganized by test level and application responsibility rather than by GitHub issue number.
+
+The current structure is:
 
 ```text
 tests/
 ├── integration/
+│   ├── test_booking_journey.py
+│   └── test_user_journey.py
 ├── unit/
-├── functional/
+│   ├── test_book.py
+│   ├── test_display_points.py
+│   ├── test_load.py
+│   ├── test_purchase_places.py
+│   ├── test_purchase_places_route.py
+│   └── test_show_summary.py
 └── conftest.py
 ```
 
-This organization makes the test suite easier to understand and maintain.
-
+This organization makes the purpose of each test easier to identify and keeps tests targeting the same function or responsibility together.
 
 ## Unit Tests
 
-Unit tests focus primarily on the `purchase_places()` business logic.
+The majority of the automated test suite consists of focused unit tests.
 
-They verify cases including:
+### Loading functions
 
-- successful booking;
+`test_load.py` verifies the three JSON loading functions:
+
+- `loadClubs()`;
+- `loadCompetitions()`;
+- `loadBookings()`.
+
+Temporary files are used during these tests so that the application's real JSON data is not modified.
+
+### Booking business logic
+
+`test_purchase_places.py` groups the tests associated with the `purchase_places()` business function.
+
+The tests verify:
+
+- successful bookings;
 - insufficient club points;
 - insufficient competition capacity;
-- zero or negative booking quantities;
-- booking a past competition;
-- exceeding the maximum number of places allowed.
+- zero booking quantities;
+- negative booking quantities;
+- bookings for past competitions;
+- the cumulative 12-place booking limit;
+- persistence of bookings in `bookings.json`;
+- persistence of updated club points and competition places.
 
-These tests validate the booking rules independently from the Flask interface.
+Keeping these tests together reflects the responsibility of the `purchase_places()` function and makes the business rules easier to review.
 
+### Flask route behavior
+
+Additional focused tests verify individual Flask routes and their responsibilities:
+
+- `test_show_summary.py`: handling of an unknown email;
+- `test_book.py`: rejection of a past competition;
+- `test_purchase_places_route.py`: behavior of the `/purchasePlaces` route;
+- `test_display_points.py`: public display of the clubs' points board.
 
 ## Integration Tests
 
-Integration tests verify interactions between the Flask application, routes, business logic, templates, and persisted data.
+Integration testing is deliberately limited to complete and coherent user journeys involving several consecutive application actions.
 
-They cover scenarios including:
+### User journey
 
-- unknown email authentication;
-- booking limits;
-- insufficient points;
-- competition capacity;
-- past competitions;
-- points updates;
-- points display;
-- JSON persistence;
-- booking persistence in `bookings.json`.
+`test_user_journey.py` verifies that a user can:
 
+1. log in with a valid club email;
+2. access the application;
+3. consult the points board;
+4. log out successfully.
 
-## JSON Persistence Tests
+### Booking journey
 
-Persistence tests verify that a successful booking correctly updates the application's JSON data.
+`test_booking_journey.py` verifies a complete booking workflow:
 
-The tests verify both:
+1. the club secretary logs in;
+2. a future competition is selected;
+3. the `/book` route is successfully accessed;
+4. places are requested;
+5. the booking is processed;
+6. the success confirmation is displayed;
+7. the club's points are reduced;
+8. the competition's available places are reduced;
+9. the booking is recorded.
 
-- the updated club points;
-- the updated number of competition places.
-
-Booking persistence in `bookings.json` is also tested.
-
+These integration tests verify that routes, templates, business logic, and application data work together correctly across a complete user workflow.
 
 ## Running the Tests
 
@@ -237,12 +262,11 @@ Run the complete automated test suite with:
 pytest -v
 ```
 
-Current test result:
+Current result:
 
 ```text
-17 passed
+21 passed
 ```
-
 
 ## Test Coverage
 
@@ -251,6 +275,7 @@ Test coverage is measured using Coverage.py.
 Run:
 
 ```bash
+coverage erase
 coverage run -m pytest
 coverage report -m
 ```
@@ -258,55 +283,70 @@ coverage report -m
 Current results:
 
 ```text
-TOTAL coverage: 96%
-server.py coverage: 86%
+TOTAL coverage: 98%
+server.py coverage: 93%
 ```
 
-The project therefore exceeds the required minimum coverage of 60%.
+The project therefore exceeds the required minimum test coverage of 60%.
 
+An optional local HTML report can be generated with:
+
+```bash
+coverage html
+```
+
+The generated `.coverage` file and `htmlcov/` directory are ignored by Git because they are generated test artifacts rather than source code.
 
 # Performance Testing
 
 Performance tests are implemented using Locust.
 
-Run Locust with:
+Run the Flask application, then start Locust with:
 
 ```bash
 locust -f locustfile.py
 ```
 
-Then open:
+Open the Locust interface at:
 
 ```text
 http://localhost:8089
 ```
 
-The performance test scenario is designed for 6 simultaneous users.
+The performance test scenario is designed for six simultaneous users.
 
-The expected performance requirements are:
+The performance requirements are:
 
 - data retrieval and page loading in less than 5 seconds;
 - data updates in less than 2 seconds.
 
-Locust is used to simulate concurrent users and measure the application's response times under load.
+Locust is used to simulate concurrent users and measure application response times under load.
 
+Generated performance reports are not intended to be versioned as source code.
 
 # Git and QA Workflow
 
-The project uses Git branches to isolate bug fixes and application improvements.
+Git branches are used to isolate bug fixes and application improvements.
 
-Dedicated branches were used during development for individual issues and features.
+Dedicated branches were created during development for individual bugs and features, providing traceability between identified issues and their corrections.
 
-A dedicated QA branch is used for the final review:
+The project also uses a dedicated QA branch:
 
 ```text
 qa/final-review
 ```
 
-The QA branch contains the corrected application, automated tests, persistence improvements, performance tests, and final quality validation.
+The QA workflow is used to review:
 
-This workflow helps separate development work from quality-assurance validation and provides traceability of the changes made during the project.
+- corrected business rules;
+- Flask behavior;
+- automated tests;
+- JSON persistence;
+- test coverage;
+- performance testing;
+- final project quality.
 
+The final Git workflow is reviewed to ensure that the stable application remains the source of truth while QA activities remain identifiable and traceable.
 
 # Key Quality Improvements
 
@@ -317,37 +357,39 @@ The main improvements implemented during this project include:
 - prevention of zero and negative bookings;
 - validation of available club points;
 - validation of competition capacity;
-- enforcement of the 12-place cumulative booking limit;
-- dynamic booking limits in the user interface;
-- server-side validation of business rules;
-- persistence of club, competition, and booking data;
-- points board display;
-- separation of business logic from Flask routes;
-- unit and integration testing;
+- enforcement of the cumulative 12-place booking limit;
+- persistent booking history with `bookings.json`;
+- dynamic booking limits based on points, capacity, and previous bookings;
+- server-side enforcement of business rules;
+- persistence of club points and competition places;
+- public points board display;
+- separation of booking business logic from the Flask route;
+- focused unit testing of business rules and application functions;
+- complete integration tests based on coherent user journeys;
 - JSON persistence testing;
-- test coverage measurement;
+- automated test coverage measurement;
 - performance testing with Locust;
-- structured QA workflow with Git.
-
+- structured quality-assurance workflow with Git.
 
 # Professional Perspective
 
-This project was completed as part of my Python development training and contributes to my broader career transition toward functional IT and cybersecurity consulting.
+This project was completed as part of my Python development training and contributes to my broader career transition toward functional cybersecurity consulting.
 
-Beyond Python development itself, the project allowed me to strengthen skills that are also relevant to functional consulting and software quality:
+Although GUDLFT Registration is not a cybersecurity application, the project strengthened several skills that are directly transferable to functional consulting, software quality, and cybersecurity-oriented environments:
 
-- understanding and translating functional requirements into business rules;
-- identifying application defects and analyzing their impact;
-- validating expected versus actual application behavior;
-- designing test scenarios from business requirements;
-- separating user-interface controls from backend validation;
-- improving data consistency and persistence;
+- understanding functional requirements and translating them into verifiable business rules;
+- identifying defects and analyzing their impact on application behavior;
+- comparing expected and actual behavior;
+- designing test scenarios from functional requirements;
+- distinguishing user-interface controls from backend validation;
+- validating data consistency and persistence;
+- considering how application rules can be bypassed if they are enforced only on the client side;
 - documenting technical and functional decisions;
-- using Git branches to support traceability and quality assurance;
-- using automated testing and performance testing to provide evidence that requirements are respected.
+- using Git branches to improve traceability and quality assurance;
+- using automated tests, coverage measurement, and performance testing as evidence that requirements are respected;
+- communicating between functional requirements and technical implementation.
 
-These practices are transferable to functional cybersecurity and GRC-oriented environments, where requirements analysis, control validation, risk awareness, traceability, testing, and communication between technical and business stakeholders are important.
-
+These practices are particularly relevant to my objective of working as a functional cybersecurity consultant, where requirements analysis, control validation, risk awareness, traceability, testing, documentation, and communication between technical and business stakeholders are essential.
 
 ## Repository
 
