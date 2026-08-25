@@ -170,15 +170,19 @@ The current structure is:
 ```text
 tests/
 ├── integration/
+│   ├── __init__.py
 │   ├── test_booking_journey.py
 │   └── test_user_journey.py
 ├── unit/
+│   ├── __init__.py
 │   ├── test_book.py
 │   ├── test_display_points.py
 │   ├── test_load.py
 │   ├── test_purchase_places.py
 │   ├── test_purchase_places_route.py
+│   ├── test_save.py
 │   └── test_show_summary.py
+├── __init__.py
 └── conftest.py
 ```
 
@@ -197,6 +201,16 @@ The majority of the automated test suite consists of focused unit tests.
 - `loadBookings()`.
 
 Temporary files are used during these tests so that the application's real JSON data is not modified.
+
+### Saving functions
+
+`test_save.py` verifies the three JSON persistence functions:
+
+- `saveClubs()`;
+- `saveCompetitions()`;
+- `saveBookings()`.
+
+These tests verify that application data is correctly written to JSON storage.
 
 ### Booking business logic
 
@@ -222,7 +236,7 @@ Additional focused tests verify individual Flask routes and their responsibiliti
 
 - `test_show_summary.py`: handling of an unknown email;
 - `test_book.py`: rejection of a past competition;
-- `test_purchase_places_route.py`: behavior of the `/purchasePlaces` route;
+- `test_purchase_places_route.py`: behavior of the `/purchasePlaces` route and its booking validations;
 - `test_display_points.py`: public display of the clubs' points board.
 
 ## Integration Tests
@@ -265,7 +279,7 @@ pytest -v
 Current result:
 
 ```text
-21 passed
+24 passed
 ```
 
 ## Test Coverage
@@ -283,8 +297,8 @@ coverage report -m
 Current results:
 
 ```text
-TOTAL coverage: 98%
-server.py coverage: 93%
+server.py: 100%
+TOTAL: 100%
 ```
 
 The project therefore exceeds the required minimum test coverage of 60%.
@@ -322,31 +336,45 @@ The performance requirements are:
 
 Locust is used to simulate concurrent users and measure application response times under load.
 
-Generated performance reports are not intended to be versioned as source code.
+Generated performance reports are not versioned as source code.
 
 # Git and QA Workflow
 
-Git branches are used to isolate bug fixes and application improvements.
+Git branches are used to isolate bug fixes, features, and application improvements.
 
-Dedicated branches were created during development for individual bugs and features, providing traceability between identified issues and their corrections.
+Dedicated branches were created during development to keep changes traceable and to avoid introducing unfinished work directly into the main branch.
 
-The project also uses a dedicated QA branch:
+Individual bug and feature branches were used during the debugging phase, while the final validated corrections were consolidated through:
+
+```text
+improvement/final-corrections
+```
+
+Once the complete automated test suite was successful, the validated version was integrated into `master`.
+
+The `master` branch is therefore the project's source of truth and contains the stable, functional version of the application.
+
+A dedicated QA branch was then created from the final `master` branch:
 
 ```text
 qa/final-review
 ```
 
-The QA workflow is used to review:
+At the start of the final QA review, `master` and `qa/final-review` point to the same validated application state.
 
-- corrected business rules;
-- Flask behavior;
-- automated tests;
+The QA branch is used for final code review and quality assurance and is not intended to be merged back into `master`.
+
+The final QA review covers:
+
+- business-rule validation;
+- Flask routes and templates;
 - JSON persistence;
+- unit and integration tests;
 - test coverage;
 - performance testing;
-- final project quality.
+- project documentation.
 
-The final Git workflow is reviewed to ensure that the stable application remains the source of truth while QA activities remain identifiable and traceable.
+This workflow keeps the stable application identifiable in `master` while maintaining a dedicated branch for final quality review.
 
 # Key Quality Improvements
 
@@ -366,7 +394,7 @@ The main improvements implemented during this project include:
 - separation of booking business logic from the Flask route;
 - focused unit testing of business rules and application functions;
 - complete integration tests based on coherent user journeys;
-- JSON persistence testing;
+- JSON loading and persistence testing;
 - automated test coverage measurement;
 - performance testing with Locust;
 - structured quality-assurance workflow with Git.
